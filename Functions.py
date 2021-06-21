@@ -291,7 +291,8 @@ def plot_prop(UI, t,z):
                 x = t,#np.sort(t),
                 y = z,#np.sort(z),
                 z = UI,
-                type = 'heatmap',
+                #type = 'heatmap',
+                zsmooth = "best", #to avoid line at the end of the plot
                 colorscale = 'Jet')])
     propagation.update_layout(
                             width=600, height=600,
