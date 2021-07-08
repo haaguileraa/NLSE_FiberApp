@@ -69,6 +69,9 @@ class Pulse:
         self.T_selected = T_
         self.T = T
         self.m = m
+        if self.m == 0:
+            self.m = 1
+            print('m = 0 not allowed, working with 1 instead')
         self.C = C
         self.initParam()
 
@@ -79,15 +82,11 @@ class Pulse:
         self.points = len(self.T)
         #Normalized Slow-Varying Envelope
         if self.pulsetype == 'Gaussian':
-            self.UT0 = (np.exp(-((1+1j*self.C)/2)*(self.T**2)/(self.T_selected**2))).astype(complex) #dtype = 'complex' in order to have complex values on solve_ivp 
-            #No chirp, no Super Gaussian (np.exp(-(T**2)/(2*T_**2))).astype(complex)
-        elif self.pulsetype == 'SGaussian':
-            self.UT0 = (np.exp(-((1+1j*self.C)/2)*((self.T**2)/(self.T_selected**2))**(2*self.m))).astype(complex) #dtype = 'complex' in order to have complex values on solve_ivp 
-            #No chirp, no Super Gaussian (np.exp(-(T**2)/(2*T_**2))).astype(complex)
+            self.UT0 = (np.exp(-((1+1j*self.C)/2)*((self.T/self.T_selected)**(2*self.m)))).astype(complex) #dtype = 'complex' in order to have complex values on solve_ivp 
         elif self.pulsetype == 'Sech':
             self.UT0 = (1/(np.cosh(self.T/self.T_selected))*np.exp(-(1j*self.C*self.T**2)/(2*self.T_selected**2))).astype(complex)
         else:
-            raise ValueError("Pulse must be 'Sech', 'Gaussian' or 'SGaussian'.")
+            raise ValueError("Pulse {0} not found, it must be 'Sech' or 'Gaussian'.".format(self.pulsetype))
         self.UW0 =np.fft.fftshift(np.fft.ifft(self.UT0))
         self.W = 2*np.pi* np.fft.fftfreq(self.points, self.dT)
         self.W = np.fft.fftshift(self.W)
@@ -121,12 +120,12 @@ class Propagation(Pulse):
             self.incident_field_spm()
         elif self.solve_type == 'split_step':
             if self.beta2  == 0 or self.gamma  == 0 or self.P0 == 0:
-                print('Either L, beta2, gamma or P0 are zero, this could lead to problems with the calculation of the current method selected!')
+                print('Either beta2, gamma or P0 are zero, this could lead to problems with the calculation of the current method selected!')
             if self.zmax  == 0:
                 raise ValueError('Fiber Length cannot be 0 for de desired solution')       
             self.split_step()
         else:
-            raise ValueError("solution method must be 'only_gvd', 'only_spm' or 'split_step'.")
+            raise ValueError("Solution method {0} does not exist, it must be 'only_gvd', 'only_spm' or 'split_step'.".format(self.solve_type))
 
     #Lengths
     def compute_LD(self):#Dispersion Length:
@@ -196,7 +195,7 @@ class Propagation(Pulse):
             Phi_NL = phinl(self.T)
             delta_w = -derivative(phinl, self.T, dx=self.dT)
         else:
-            raise ValueError("Pulse must be 'Sech' or 'Gaussian'.")
+            raise ValueError("Pulse {0} not found, it must be 'Sech' or 'Gaussian'.".format(self.pulsetype))
 
         return Phi_NL, delta_w
     ##-------------------------------------------------------##
@@ -262,17 +261,27 @@ class Propagation(Pulse):
     ##-------------------------------------------------------##
     #----- PLOTS -----#
     
-    def plot_prop(self):
+    def plot_prop(self, mode = 'time', xrange = [-8, 8], size_img = 600):
+        if mode == 'time':
+            intensity = self.UI
+            x = self.T/self.T_selected#np.sort(t),
+            x_title = 'T/T0'
+        elif mode == 'spectrum':
+            intensity = self.UIW
+            x = self.W
+            x_title = '\u03C9-\u03C90'
+        else:
+            raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
         propagation = go.Figure(data=[go.Heatmap(
-                    x = self.T/self.T_selected,#np.sort(t),
+                    x = x,
                     y = self.z,#np.sort(z),
-                    z = self.UI,
+                    z = intensity,
                     #type = 'heatmap',
                     zsmooth = "best",#to avoid line at the end of the plot
                     colorscale = 'Jet')])
         propagation.update_layout(
-                                width=600, height=600,
+                                width=size_img, height=size_img,
                                 yaxis=dict(range=[self.z[0], self.z[-1]],title='z [km]', ), 
-                                xaxis=dict(range=[-8, 8],title='T/T0',), 
+                                xaxis=dict(range=xrange,title=x_title,), 
                                 )
         return propagation
