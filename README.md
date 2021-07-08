@@ -2,6 +2,14 @@
 Repository for project NLSE at Max Planck Institut
 
 
+
+# UPDATE 09.07.20
+
+**The file NLSE_oo.py is a more organized version of the code. This will be used in a final version integrating Pandas and using better ways to share data between Callbacks on Dash**
+
+
+
+
 # Python Installation:
 
 
@@ -64,3 +72,7 @@ You can run the App just by using:
 **`python .\index.py`**
 
 and go to the page (default): http://127.0.0.1:8050/apps/gvd
+
+
+
+
