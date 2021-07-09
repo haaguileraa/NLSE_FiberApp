@@ -5,7 +5,7 @@ import dash_core_components as dcc
 from scipy.integrate import cumtrapz, solve_ivp
 import plotly.graph_objects as go
 from numpy.core.numeric import Inf  
-import pandas as pd
+#import pandas as pd
 
 
 ##-----------NUMERICAL METHODS-----------##
