@@ -5,7 +5,7 @@ Repository for project NLSE at Max Planck Institut
 
 # UPDATE 09.07.20
 
-**The file NLSE_oo.py is a more organized version of the code. This will be used in a final version integrating Pandas and using better ways to share data between Callbacks on Dash**
+**The file init_variables.py is a more organized version of the code. This will be used in a final version integrating Pandas and using better ways to share data between Callbacks on Dash. You can try it using prop_matplot.py!!**
 
 
 
