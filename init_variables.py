@@ -5,7 +5,7 @@ import dash_core_components as dcc
 from scipy.integrate import cumtrapz, solve_ivp
 import plotly.graph_objects as go
 from numpy.core.numeric import Inf  
-#import pandas as pd
+import pandas as pd
 
 
 ##-----------NUMERICAL METHODS-----------##
@@ -32,8 +32,6 @@ def mid_step(x0, f, T, *args):
 #------------------------#
 ##------------------------------------##
 
-
-
 ##---------------------SPM---------------------##
 #--frequency chirp δω for Gaussian Pulse--#
 def delta_g(T, T_, Leff, LNL, m = 1):
@@ -41,7 +39,6 @@ def delta_g(T, T_, Leff, LNL, m = 1):
     return delta_w
 #-----------------------------------------#
 ##---------------------------------------------##
-
 
 #--SPLIT STEP FUNCTIONS--#
 def U_noGVD(z,val,gamma,P0,T0,alpha,beta2, beta3): 
@@ -61,7 +58,7 @@ def U_noGVD(z,val,gamma,P0,T0,alpha,beta2, beta3):
     return f
 #-------------------------#
 
-
+#--------------------CLASS--------------------------------#
 class Pulse:
     def __init__(self,  T_, T,  m = 1, C=0, pulsetype = 'Gaussian'):
         self.pulsetype = pulsetype
@@ -75,8 +72,6 @@ class Pulse:
         self.C = C
         self.initParam()
 
-#L, beta2, gamma, P0,  beta3=0, alpha = 0,
-
     def initParam(self):
         self.dT = self.T[1]-self.T[0] # step_size
         self.points = len(self.T)
@@ -86,20 +81,17 @@ class Pulse:
         elif self.pulsetype == 'Sech':
             self.UT0 = (1/(np.cosh(self.T/self.T_selected))*np.exp(-(1j*self.C*self.T**2)/(2*self.T_selected**2))).astype(complex)
         else:
-            raise ValueError("Pulse {0} not found, it must be 'Sech' or 'Gaussian'.".format(self.pulsetype))
+            raise ValueError("Pulse '{0}' not found, it must be 'Sech' or 'Gaussian'.".format(self.pulsetype))
         self.UW0 =np.fft.fftshift(np.fft.ifft(self.UT0))
         self.W = 2*np.pi* np.fft.fftfreq(self.points, self.dT)
         self.W = np.fft.fftshift(self.W)
+#------------------------------------------------------------#
 
 
-
-
-
-
-
+#------------------------CLASS-------------------------------#
 
 class Propagation(Pulse):
-    def __init__(self,T_, T, solve_type= 'incident_field', L=0.1, beta2=0, gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', m = 1, C=0, h_step = 0.001, factork = 0.25, size_array = 100):
+    def __init__(self,T_, T, solve_type= 'incident_field', L=0.1, beta2=0, gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', m = 1, C=0, z0=0,h_step = 0.001, factork = 0.25, size_array = 100):
         Pulse.__init__(self, T_, T, m=m, C=C, pulsetype=pulsetype) 
         self.zmax = L #[km]  #Max distance that will be evaluated
         self.beta2 = beta2 #[ps²/km]
@@ -107,6 +99,7 @@ class Propagation(Pulse):
         self.P0 = P0 #[W]
         self.beta3= beta3 #[ps³/km]
         self.loss = loss  #[dB/km]
+        self.z0 = z0 #At this point will be evaluated the pulse while using the 'only_gvd' mode
         self.h_step = h_step
         self.factork = factork #100 for 1/h a points for each zmax km #just a factor to calculate how many points will be used during SSFM
         self.size_array = size_array #Size of the array where we are going to save the values of U(T) and U(w)
@@ -125,7 +118,7 @@ class Propagation(Pulse):
                 raise ValueError('Fiber Length cannot be 0 for de desired solution')       
             self.split_step()
         else:
-            raise ValueError("Solution method {0} does not exist, it must be 'only_gvd', 'only_spm' or 'split_step'.".format(self.solve_type))
+            raise ValueError("Solution method '{0}' does not exist, it must be 'only_gvd', 'only_spm' or 'split_step'.".format(self.solve_type))
 
     #Lengths
     def compute_LD(self):#Dispersion Length:
@@ -152,23 +145,31 @@ class Propagation(Pulse):
 
 
     ##------------------------For GVD------------------------##
-    def incident_field(self,z0):  #Function using Eq. 3.2.5 and 3.2.6
-        self.UW = self.UW0*np.exp((1j*self.beta2*self.W**2*z0/2))
+    def incident_field(self):  #Function using Eq. 3.2.5 and 3.2.6
+        self.UW = self.UW0*np.exp((1j*self.beta2*self.W**2*self.z0/2))
         self.UT = np.fft.fft(np.fft.fftshift(self.UW))
         self.UI = np.absolute(self.UT)**2
-        return self.UT, self.UI, self.UW, self.W
+        self.UIW = np.absolute(self.UW)**2
+        self.UIW = self.UIW/np.amax(self.UIW) 
+        return self.UT, self.UI, self.UW, self.UIW
 
-    def Gaussian_pulse_GVD(self,z0): #Function using Eq. 3.2.7 and 3.2.9 Agrawal
-        self.UT = self.T_selected/(np.sqrt(self.T_selected**2 - 1j*self.beta2*z0))*np.exp(-self.T**2/(2*(self.T_selected**2 - 1j*self.beta2*z0)))
+    def Gaussian_pulse_GVD(self): #Function using Eq. 3.2.7 and 3.2.9 Agrawal
+        self.UT = self.T_selected/(np.sqrt(self.T_selected**2 - 1j*self.beta2*self.z0))*np.exp(-self.T**2/(2*(self.T_selected**2 - 1j*self.beta2*self.z0)))
         self.UI = np.absolute(self.UT)**2
-        return self.UT, self.UI
+        self.UW = np.fft.fftshift(np.fft.ifft(self.UT))
+        self.UIW = np.absolute(self.UW)**2
+        self.UIW = self.UIW/np.amax(self.UIW) 
+        return self.UT, self.UI, self.UW, self.UIW
 
 
-    def Sech_pulse_GVD(self,z0):#Not used 
+    def Sech_pulse_GVD(self):#Not used 
         self.U0 = 1/(np.cosh(self.T/self.T_selected))*np.exp(-(1j*self.C*self.T**2)/(2*self.T_selected**2))
-        self.UT = self.T_selected/(np.sqrt(self.T_selected**2 - 1j*self.beta2*z0))*np.exp(-self.T**2/(2*(self.T_selected**2 - 1j*self.beta2*self.z)))
+        self.UT = self.T_selected/(np.sqrt(self.T_selected**2 - 1j*self.beta2*self.z0))*np.exp(-self.T**2/(2*(self.T_selected**2 - 1j*self.beta2*self.z0)))
         self.UI = np.absolute(self.UT)**2
-        return self.UT, self.UI
+        self.UW = np.fft.fftshift(np.fft.ifft(self.UT))
+        self.UIW = np.absolute(self.UW)**2
+        self.UIW = self.UIW/np.amax(self.UIW) 
+        return self.UT, self.UI, self.UW, self.UIW
     ##-------------------------------------------------------##
     ##-------------------------------------------------------##
 
@@ -181,23 +182,23 @@ class Propagation(Pulse):
         Leff = LNL # Normalized to get the plots from the book
         if self.pulsetype == 'Gaussian':
             if self.m <= 1:
-                Phi_NL = (Leff/LNL)*np.absolute(self.UT0)**2
-                delta_w = delta_g(self.T, self.T_selected, Leff, LNL)
+                self.Phi_NL = (Leff/LNL)*np.absolute(self.UT0)**2
+                self.delta_w = delta_g(self.T, self.T_selected, Leff, LNL)
             else: 
-                delta_w = delta_g(self.T, self.T_selected, Leff, LNL, self.m)
+                self.delta_w = delta_g(self.T, self.T_selected, Leff, LNL, self.m)
                 #for array-like data
                 #Phi_NL = -cumtrapz(delta_w, T, initial=0) #Default 'initial' is None, which means no value at x[0] 
                 #for function-like input:
-                Phi_NL = -mid_step(0, delta_g, self.T, self.T_selected, Leff, LNL, self.m)
+                self.Phi_NL = -mid_step(0, delta_g, self.T, self.T_selected, Leff, LNL, self.m)
 
         elif self.pulsetype == 'Sech':
             phinl = lambda t: (Leff/LNL)*np.absolute(1/(np.cosh(t/self.T_selected))*np.exp(-(1j*self.C*t**2)/(2*self.T_selected**2)))**2
-            Phi_NL = phinl(self.T)
-            delta_w = -derivative(phinl, self.T, dx=self.dT)
+            self.Phi_NL = phinl(self.T)
+            self.delta_w = -derivative(phinl, self.T, dx=self.dT)
         else:
-            raise ValueError("Pulse {0} not found, it must be 'Sech' or 'Gaussian'.".format(self.pulsetype))
+            raise ValueError("Pulse '{0}' not found, it must be 'Sech' or 'Gaussian'.".format(self.pulsetype))
 
-        return Phi_NL, delta_w
+        return self.Phi_NL, self.delta_w
     ##-------------------------------------------------------##
     ##-------------------------------------------------------##
 
@@ -251,6 +252,7 @@ class Propagation(Pulse):
         self.UW[-1] = Uwtemp
         self.UI = np.absolute(self.U)**2
         self.UIW = np.absolute(self.UW)**2
+        self.UIW = self.UIW/np.amax(self.UIW) 
         print('last z evaluated: ',z, 'km')
         print('last z saved: ',self.z[-1], 'km')
         print('\u03B1 = {0}'.format('%.3f' % (self.alpha)))
@@ -285,3 +287,5 @@ class Propagation(Pulse):
                                 xaxis=dict(range=xrange,title=x_title,), 
                                 )
         return propagation
+
+#------------------------------------------------------------#
