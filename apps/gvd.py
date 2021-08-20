@@ -190,7 +190,7 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                 C_slider,
                 html.H3('z: '+str(z0)+r'km', id='z_val', style={'color': colors['text']}),
                 Lange_slider,
-                daq.ToggleSwitch(id='switchgvd',value=False,label='Type of pulse: ', labelPosition='bottom'),
+                daq.ToggleSwitch(id='switchgvd',value=False,label='Type of pulse (Sech or Gaussian): ', labelPosition='bottom'),
             ]),  # Define the left element
             html.Div(className='eight columns div-for-charts bg-grey', style={'backgroundColor': colors['background']},  
             children = [
@@ -253,5 +253,5 @@ def update_plot(new_beta2, mn, cn, new_z, switch):
             'LD: '+ str( '%.3f' %  (pulse.compute_LD())) + ' km',
             pulse.plot_envelope_GVD(mode = 'time'), # envelope plot in time,
             pulse.plot_envelope_GVD(mode = 'spectrum'), # envelope plot in spectrum 
-            'Type of pulse: {0}'.format(pulsetype)
+            'Type of pulse (Sech or Gaussian): {0}'.format(pulsetype)
             )
