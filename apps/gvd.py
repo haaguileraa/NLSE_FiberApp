@@ -2,15 +2,15 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_daq as daq
 from dash.dependencies import Input, Output
 from numpy.core.numeric import Inf
 import plotly.graph_objects as go   
 import numpy as np
-from Functions import Gaussian_pulse_GVD, incident_field
-
+from init_variables import *
+from init_variables import date
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
 
 from app import app
 
@@ -25,9 +25,7 @@ colors = { #Definition of colors for future use
     'other': 'darkred', 
 }
 
-
-
-last_update = 'Last update: 14.06.2021'
+last_update = 'Last update: ' + date
 
 #------------------Definitons--------------#
 
@@ -36,42 +34,20 @@ last_update = 'Last update: 14.06.2021'
 #Tmax = 5 ~ 10ps
 T0 = 1E-12 #  duration of input
 #for pulse width  --> Dispersive effects at T0 ~ 1ps 
-#replaced by usr
-
-T_FWHM_g = 2*np.sqrt(np.log(2))*T0
-
-#For Sech pulses:  
-#Chirp parameter
-C = 0 
-T_FWHM_sech = 2*np.log(1+np.sqrt(2))*T0
-
 N = 8196 #ammount of points 
-dt = 100*T0/N #the 16 is to get a grid between -8 and 8 for T/T0 
-#dt = 8*T_FWHM/N
-
+dt =  750*T0/N#100*T0/N #the 16 is to get a grid between -8 and 8 for T/T0   #The number before T0/N sets the time (and freq) frame!
 T = np.arange(-N/2, N/2)*dt
-
-
-T_selected_g = T_FWHM_g##### Update with a button(?)
-T_selected_s = T_FWHM_sech
-
-
-beta2_initial = 5.66099
-L_initial = 0
-
-LD = ((T0)**2)/np.absolute(beta2_initial*1E-24)  # Einheit!!!: km #HERE 1E-24 due to the square of ps^2
-C = 0
+#---------------- Parameters: -----------------#
+zmax = 3.5/3 # km    Values for n/3 -> φNL max = n*π
+beta2_initial = 8.3#5.66099
+alpha_initial = 0 #dB/km
+z0 = 0
+m0 = 1
+C0 = 0 #Chirp parameter
+pulsetype = 'Gaussian'# or Sech
 #-------------------------------------------#
 
-
-z = 0
-z1 = 2*LD
-z2 = 4*LD
-
-
-
 #-------- SLIDERS---------------
-
 beta2_slider = dcc.Slider(
         id='beta2_slid',
         min=-20.0,
@@ -84,62 +60,105 @@ beta2_slider = dcc.Slider(
         20: {'label': '20', 'style': {'color': colors['text']}}},
     )
 
+m_slider = dcc.Slider(
+        id='mg_slid',
+        min=1,
+        max=10,
+        step=1,
+        value=m0,
+        marks={
+        1: {'label': '1', 'style': {'color': colors['text']}},
+        10: {'label': '10', 'style': {'color': colors['text']}}},
+    )
+
+C_slider = dcc.Slider(
+        id='cg_slid',
+        min=0,
+        max=10,
+        step=1,
+        value=C0,
+        marks={
+        0: {'label': '0', 'style': {'color': colors['text']}},
+        10: {'label': '10', 'style': {'color': colors['text']}}},
+    )
 
 Lange_slider = dcc.Slider(
         id='lange_slid',
         min=0,
         max=2.5,
         step=0.001,
-        value=L_initial,
+        value=z0,
         marks={
         0: {'label': '0', 'style': {'color': colors['text']}},
         2.5: {'label': '2.5 km', 'style': {'color': colors['text']}}},
     )
 
-
 beta2_initial *= 1E-24
 
+pulse = Propagation( T0, T, m = m0, 
+                        C=C0, pulsetype = 'Gaussian',
+                        solve_type='only_gvd',  
+                        beta2=beta2_initial,
+                        z0=z0,
+                        )
+LD = pulse.compute_LD()
+z1 = 2*LD
+z2 = 4*LD
 
+pulse1 = Propagation( T0, T, m = m0, 
+                        C=C0, 
+                        solve_type='gauss_gvd',  
+                        beta2=beta2_initial,
+                        z0=z0,
+                        )
 
-
-
-
-
-
+pulse2 = Propagation( T0, T, m = m0, 
+                    C=C0, 
+                    solve_type='gauss_gvd',  
+                    beta2=beta2_initial,
+                    z0=z1,
+                    )
+pulse3 = Propagation( T0, T, m = m0, 
+                    C=C0,
+                    solve_type='only_gvd',  
+                    beta2=beta2_initial,
+                    z0=z2,
+                    )
+#-------------------Using Eq 3.2.5 and 3.2.6--------------------#
+gvd_t = pulse.plot_envelope_GVD(mode = 'time') # envelope plot in time
+gvd_w = pulse.plot_envelope_GVD(mode = 'spectrum') # envelope plot in time  
+gvd_graph = dcc.Graph(id='gvdt', #id for callback purposes
+                        animate=True,
+                        figure=gvd_t.update_layout(
+))
+gvd_graph_frec = dcc.Graph(id='gvdw', #id for callback purposes
+                        animate=True,
+                        figure=gvd_w.update_layout(
+))
+#---------------------------------------------------------------#
+#///////////////////////////////////////////////////////////////#
 #-----------------------Eq. 3.2.7 and 3.2.9---------------------#
 
+gvd_t1 = go.Scatter(x=pulse1.T/pulse1.T0,y=pulse1.UI,name = 'z = 0',
+                                line=dict(color='darkgreen'))
+gvd_t2 = go.Scatter(x=pulse1.T/pulse1.T0,y=pulse2.UI,name = 'z = 2*LD',
+                                line=dict(color='darkblue'))
+gvd_t3 = go.Scatter(x=pulse1.T/pulse1.T0,y=pulse3.UI, name = 'z = 4*LD',
+                                line=dict(color='darkred'))
 
-_, UI1 = Gaussian_pulse_GVD(z,T,T_selected_g, beta2_initial)
-_, UI2 = Gaussian_pulse_GVD(z1,T,T_selected_g, beta2_initial)
-_, UI3 = Gaussian_pulse_GVD(z2,T,T_selected_g, beta2_initial)
+env_fig = go.Figure(data=[gvd_t1, gvd_t2, gvd_t3]).update_layout()
 
-#print(UI1)
-Uz0 = go.Scatter(x=T/T0 ,y=UI1, name = 'z = 0',
-                         line=dict(color=colors['even']))
-U2LD = go.Scatter(x=T/T0 ,y=UI2, name = 'z = 2*LD',
-                         line=dict(color=colors['odd']))
-U4LD = go.Scatter(x=T/T0 ,y=UI3, name = 'z = 4*LD',
-                         line=dict(color=colors['other']))
-
-gvd_z = go.Figure(data=[Uz0, U2LD, U4LD])
-
-plot_gvd = dcc.Graph(id='gauss',
-          animate=True,
-          figure=gvd_z.update_layout( 
+plot_gvd = dcc.Graph(id='gvdt1', #id for callback purposes
+                        animate=True,
+                        figure=env_fig.update_layout( 
                             width=600, height=600,
                             plot_bgcolor  = colors['background'],
                             paper_bgcolor = colors['background'],
                             font= {
                                     'color': colors['text']},
                             yaxis=dict(range=[0, 1.1],title='|U(z,T)|^2', 
-                                        # gridwidth=0.8, gridcolor='#121212', 
-                                        # zeroline=True,zerolinewidth=0.8, 
-                                        # zerolinecolor='#121212'
                                         ), 
                             xaxis=dict(range=[-8, 8],title='T/T0', 
-                                        # gridwidth=0.8, gridcolor='#121212',
-                                        # zeroline=True,zerolinewidth=0.8, 
-                                        # zerolinecolor='#121212'
                                         ), 
                             title= '''
                                     Dispersion-induced broadening of a Gaussian pulse.
@@ -147,151 +166,6 @@ plot_gvd = dcc.Graph(id='gauss',
                             )
           )
 #---------------------------------------------------------------#
-#///////////////////////////////////////////////////////////////#
-#-------------------Using Eq 3.2.5 and 3.2.6--------------------#
-_, UI4, UW4, W4 = incident_field(beta2_initial, z, T_selected_g, T, pulse = 'Gaussian')
-# _, UI5, UW5, W5 = incident_field(beta2_initial, z1, T_selected_g, T, pulse = 'Gaussian')
-# _, UI6, UW6, W6 = incident_field(beta2_initial, z2, T_selected_g, T, pulse = 'Gaussian')
-_, UI7, UW7, W7 = incident_field(beta2_initial, z, T_selected_s, T, pulse = 'Sech', C = C)
-# _, UI8, UW8, W8 = incident_field(beta2_initial, z1, T_selected_s, T, pulse = 'Sech', C = C)
-# _, UI9, UW9, W9 = incident_field(beta2_initial, z2, T_selected_s, T, pulse = 'Sech', C = C)
-
-
-Uz4 = go.Scatter(x=T/T_selected_g ,y=UI4, name = 'Gaussian',
-                         line=dict(color=colors['even']))
-# Uz5 = go.Scatter(x=T/T_selected_g ,y=UI5, name = 'z = 2*LD',
-#                          line=dict(color=colors['odd']))
-# Uz6 = go.Scatter(x=T/T_selected_g ,y=UI6, name = 'z = 4*LD',
-#                          line=dict(color=colors['other']))
-
-
-Uz7 = go.Scatter(x=T/T_selected_s ,y=UI7, name = 'Hyperbolic-Secant',
-                         line=dict(color=colors['odd']))
-# Uz8 = go.Scatter(x=T/T_selected_s ,y=UI8, name = 'z = 2*LD',
-#                          line=dict(color=colors['odd']))
-# Uz9 = go.Scatter(x=T/T_selected_s ,y=UI9, name = 'z = 4*LD',
-#                          line=dict(color=colors['other']))
-
-
-
-
-#gvd_fig = go.Figure(data = [Uz4, Uz5, Uz6, Uz7, Uz8, Uz9]).update_layout(     
-gvd_fig = go.Figure(data=[Uz4,Uz7]).update_layout(
-#      
-    updatemenus = list([
-        dict(
-            type="buttons",
-            active=0,
-            buttons=list([   
-                dict(label = 'Gaussian',
-                    method = 'update',
-                    #args = [{'visible': [True, True, True, False, False, False]},
-                    args = [{'visible': [True, False]},
-                            {'title': 'Dispersion-induced broadening: Gaussian Pulse.'}]), # using Eq. 3.2.5 and 3.2.6
-
-                dict(label = 'Sech',
-                    method = 'update',
-                    args = [{'visible': [False, True]},
-                            {'title': '''
-                            Dispersion-induced broadening: Sech Pulse.'''}])  #using Eq. 3.2.5 and 3.2.6
-            ]),
-        )
-    ])
-)
-
-#gvd_fig.update(data = [Uz4, Uz5, Uz6, Uz7, Uz8, Uz9])
-#gvd_z = go.Figure(data=[Uz4, Uz5, Uz6, Uz7, Uz8, Uz9])
-
-gvd_fig.update_layout( 
-                        width=600, height=600,
-                        plot_bgcolor  = colors['background'],
-                        paper_bgcolor = colors['background'],
-                        font= {
-                                'color': colors['text']},
-                        yaxis=dict(range=[0, 1.1],title='|U(z,T)|^2', 
-                                    # gridwidth=0.8, gridcolor='#121212', 
-                                    # zeroline=True,zerolinewidth=0.8, 
-                                    # zerolinecolor='#121212'
-                                    ), 
-                        xaxis=dict(range=[-5, 5],title='T/T0', 
-                        #xaxis=dict(range=[T[0]/T_selected_g-1, T[-1]/T_selected_g+1],title='T/T0', 
-                                    # gridwidth=0.8, gridcolor='#121212',
-                                    # zeroline=True,zerolinewidth=0.8, 
-                                    # zerolinecolor='#121212'
-                                    ), 
-                        
-                        )
-
-
-gvd_graph = dcc.Graph(id='sech_gauss_plot',
-                        animate=True,
-                        figure=gvd_fig.update_layout(
-
-))
-
-
-UW_4 = np.absolute(UW4)**2
-UW_7 = np.absolute(UW7)**2
-
-Uf4 = go.Scatter(x=W4 ,y=UW_4, name = 'Gaussian',
-                         line=dict(color=colors['even']))
-
-Uf7 = go.Scatter(x=W7 ,y=UW_7, name = ' Hyperbolic-Secant',
-                         line=dict(color=colors['odd']))
-
-gvd_fig_frec = go.Figure(data=[Uf4,Uf7]).update_layout(
-#      
-    updatemenus = list([
-        dict(
-            type="buttons",
-            active=0,
-            buttons=list([   
-                dict(label = 'Gaussian',
-                    method = 'update',
-                    #args = [{'visible': [True, True, True, False, False, False]},
-                    args = [{'visible': [True, False]},
-                            {'title': 'Dispersion-induced broadening: Gaussian Pulse.'}]), # using Eq. 3.2.5 and 3.2.6
-
-                dict(label = 'Sech',
-                    method = 'update',
-                    args = [{'visible': [False, True]},
-                            {'title': '''
-                            Dispersion-induced broadening: Sech Pulse.'''}])  #using Eq. 3.2.5 and 3.2.6
-            ]),
-        )
-    ])
-)
-
-gvd_fig_frec.update_layout( 
-                        width=600, height=600,
-                        plot_bgcolor  = colors['background'],
-                        paper_bgcolor = colors['background'],
-                        font= {
-                                'color': colors['text']},
-                        yaxis=dict(title='|U(z,\u03C9)|^2', 
-                                    ), 
-                        xaxis=dict(title='\u03C9-\u03C90', #rangemode='nonzero',
-                                    ),
-                        )
-
-
-gvd_graph_frec = dcc.Graph(id='sech_gauss_plot_f',
-                        animate=True,
-                        figure=gvd_fig_frec.update_layout(
-
-))
-
-#---------------------------------------------------------------#
-
-
-
-
-
-
-
-
-
-
 
 #-------Final Layout for plotting and display of sliders and constants-------#
 layout = html.Div(style={'backgroundColor': colors['background']},
@@ -311,8 +185,13 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                 style={'color': colors['text']}),
                 beta2_slider,
                 html.H3('LD: '+ str( '%.3f' %  (LD)) + ' km', id = 'LD_display'),
-                html.H3('z: '+str(L_initial)+r'km', id='z_val', style={'color': colors['text']}),
+                html.H3('m: '+ str(m0), id = 'mg_val'),
+                m_slider,
+                html.H3('C: '+ str(C0), id = 'cg_val'),
+                C_slider,
+                html.H3('z: '+str(z0)+r'km', id='z_val', style={'color': colors['text']}),
                 Lange_slider,
+                daq.ToggleSwitch(id='switchgvd',value=False,label='Type of pulse: ', labelPosition='bottom'),
             ]),  # Define the left element
             html.Div(className='eight columns div-for-charts bg-grey', style={'backgroundColor': colors['background']},  
             children = [
@@ -326,13 +205,13 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                         'textAlign': 'center',
                         'color': colors['text']
                     }),
-                    html.H3('Using Eq. 3.2.5 and 3.2.6 Agrawal'),
+                    html.H2('Using Eq. 3.2.5 and 3.2.6 Agrawal'),
+                    #html.H3('Time'),
                     gvd_graph,
+                    #html.H3('Spectrum'),
                     gvd_graph_frec,
-                    html.H3('Using Eq. 3.2.7 and 3.2.9 Agrawal'),
-                    plot_gvd,
-                    
-                    
+                    html.H2('Using Eq. 3.2.7 and 3.2.9 Agrawal'),
+                    plot_gvd,                  
             ])  
         ]),
         html.Footer('Joly Nicolas, Aguilera Hernan. Max-Planck-Institut', style={'color': colors['text']}),
@@ -342,49 +221,38 @@ layout = html.Div(style={'backgroundColor': colors['background']},
 @app.callback( 
     [Output('beta2_val', 'children'),
     Output('z_val', 'children'),
+    Output('mg_val', 'children'),
+    Output('cg_val', 'children'),
     Output('LD_display', 'children'),
-    Output('sech_gauss_plot', 'figure'),
-    Output('sech_gauss_plot_f', 'figure'),
+    Output('gvdt', 'figure'),
+    Output('gvdw', 'figure'),
+    Output('switchgvd', 'label'),
     ],
     [Input('beta2_slid', 'value'),
-    Input('lange_slid', 'value'),]
+    Input('mg_slid', 'value'),
+    Input('cg_slid', 'value'),
+    Input('lange_slid', 'value'),
+    Input('switchgvd', 'value')]
     )
 
 # function to update with the callback:
-def update_plot(new_beta2, new_z):
+def update_plot(new_beta2, mn, cn, new_z, switch):
     new_beta2 *= 1E-24
-    if new_beta2 != 0:
-        LD_n = ((T0)**2)/np.absolute(new_beta2)
-    else:
-        LD_n = Inf
-        #-------------------Using Eq 3.2.5 and 3.2.6--------------------#
-    _, UI4_n, UW4_n, W4_n = incident_field(new_beta2, new_z, T_selected_g, T, pulse = 'Gaussian')#*1E-24
-    _, UI7_n, UW7_n, W7_n = incident_field(new_beta2, new_z, T_selected_s, T, pulse = 'Sech', C = C)
-
-
-    Uz4_n = go.Scatter(x=T/T_selected_g ,y=UI4_n, name = 'Gaussian z = '+str(new_z),
-                            line=dict(color=colors['even']))
-
-    Uz7_n = go.Scatter(x=T/T_selected_s ,y=UI7_n, name = 'Sech z = '+str(new_z),
-                            line=dict(color=colors['odd']))
-
-    new_sec_Gauss = go.Figure(data=[Uz4_n, Uz7_n]).update_layout()
-
-    UW_4_n = np.absolute(UW4_n)**2
-    UW_7_n = np.absolute(UW7_n)**2
-    Uf4_n = go.Scatter(x=W4_n ,y=UW_4_n, name = 'Gaussian',
-                         line=dict(color=colors['even']))
-
-    Uf7_n = go.Scatter(x=W7_n ,y=UW_7_n, name = ' Hyperbolic-Secant',
-                         line=dict(color=colors['odd']))
-
-    new_sec_Gauss_freq = go.Figure(data=[Uf4_n, Uf7_n]).update_layout()
-
-
+    if switch: pulsetype = 'Sech'
+    else: pulsetype = 'Gaussian'
+    pulse = Propagation( T0, T, m = mn, 
+                        C=C0, pulsetype = pulsetype,
+                        solve_type='only_gvd',  
+                        beta2=new_beta2,
+                        z0=new_z,
+                        )
 
     return ('\u03B22: '+ str( '%.3f' %  (new_beta2*1E+24)) + ' ps',
             'z: '+str(new_z)+r'km',
-            'LD: '+ str( '%.3f' %  (LD_n)) + ' km',
-            new_sec_Gauss,
-            new_sec_Gauss_freq
+            'm: '+ str(mn),
+            'C: '+ str((cn)),
+            'LD: '+ str( '%.3f' %  (pulse.compute_LD())) + ' km',
+            pulse.plot_envelope_GVD(mode = 'time'), # envelope plot in time,
+            pulse.plot_envelope_GVD(mode = 'spectrum'), # envelope plot in spectrum 
+            'Type of pulse: {0}'.format(pulsetype)
             )
