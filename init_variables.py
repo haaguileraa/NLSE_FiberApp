@@ -5,6 +5,7 @@ import dash_core_components as dcc
 from scipy.integrate import cumtrapz, solve_ivp
 import plotly.graph_objects as go
 from numpy.core.numeric import Inf  
+import pandas as pd
 
 
 #Last edition date:
@@ -647,4 +648,50 @@ def multiplots_2D(*pulses, mode = 'time', z0 = 0, xrange = [-8, 8],  yrange = [0
         raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
 
 
+def plot_envelope(x,y, pulsetype,colors,mode = 'time', z0 = 0, xrange = [-8, 8],  yrange = [0, 1.1], size_img = 600):
+    if mode == 'time':
+        x_title = 'T/T0'
+        y_title = '|U(z,T)|^2'
+        #updatemenus = []
+    elif mode == 'spectrum':
+        x_title = '\u03C9-\u03C90'
+        y_title = '|U(z,\u03C9)|^2'
+        xrange = [-0.1E14, 0.1E14]
+        # xrange = [-0.1E14+self.w0, 0.1E14+self.w0]
+        # updatemenus = [
+        #                 dict(
+        #                     type="buttons",
+        #                     direction="left",
+        #                     buttons=list([
+        #                         dict(
+        #                             args=[{'xaxis.type': 'linear'}],
+        #                             label="Linear Scale",
+        #                             method="relayout"
+        #                         ),
+        #                         dict(
+        #                             args=[{'xaxis.type': 'log'}],
+        #                             label="Log Scale",
+        #                             method="relayout"
+        #                         )
+        #                     ])
+        #                 ),
+        #             ]
+    else:
+        raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
+    
 
+    scatter = go.Scatter(x=x,y=y[z0], name = pulsetype,
+                            line=dict(color=colors['even']))
+    
+    figure = go.Figure(data=[scatter]).update_layout(
+                            width=size_img, height=size_img,
+                            plot_bgcolor  = colors['background'],
+                            paper_bgcolor = colors['background'],
+                            font= {'color': colors['text']},
+                            yaxis=dict(range=yrange,title=y_title, ), 
+                            #axis=dict(title=x_title,), 
+                            xaxis=dict(range=xrange,title=x_title, ), 
+                            title = '{0} pulse.'.format(pulsetype),
+                            )
+    #figure.update_layout(updatemenus=updatemenus)
+    return figure
