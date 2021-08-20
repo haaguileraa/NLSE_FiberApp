@@ -72,14 +72,14 @@ m_slider = dcc.Slider(
     )
 
 C_slider = dcc.Slider(
-        id='cg_slid',
-        min=0,
-        max=10,
+        id='c_slid',
+        min=-5,
+        max=5,
         step=1,
         value=C0,
         marks={
-        0: {'label': '0', 'style': {'color': colors['text']}},
-        10: {'label': '10', 'style': {'color': colors['text']}}},
+        -5: {'label': '-5', 'style': {'color': colors['text']}},
+        5: {'label': '5', 'style': {'color': colors['text']}}},
     )
 
 Lange_slider = dcc.Slider(
@@ -241,7 +241,7 @@ def update_plot(new_beta2, mn, cn, new_z, switch):
     if switch: pulsetype = 'Sech'
     else: pulsetype = 'Gaussian'
     pulse = Propagation( T0, T, m = mn, 
-                        C=C0, pulsetype = pulsetype,
+                        C=cn, pulsetype = pulsetype,
                         solve_type='only_gvd',  
                         beta2=new_beta2,
                         z0=new_z,
