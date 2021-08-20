@@ -6,11 +6,10 @@ from dash.dependencies import Input, Output
 from numpy.core.numeric import Inf
 import plotly.graph_objects as go   
 import numpy as np
-from Functions import incident_field_spm
-
+from init_variables import *
+from init_variables import date
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-
 
 from app import app
 
@@ -25,48 +24,31 @@ colors = { #Definition of colors for future use
     'other': 'darkred', 
 }
 
-
-
-last_update = 'Last update: 14.06.2021'
+last_update = 'Last update: ' + date
 
 #------------------Definitons--------------#
 
 #------------------- Grid: --------------------#
 #Input pulse
 #Tmax = 5 ~ 10ps
-T0 = 200E-12 # for pulse Initial width T0 --> Dispersive effects at T0 ~ 1ps  S.64
-# half-width (at 1/e-intensity point)
-
+T0 = 1E-12 #  duration of input
+#for pulse width  --> Dispersive effects at T0 ~ 1ps 
 N = 8196 #ammount of points 
-dt = 100*T0/N #the 16 is to get a grid between -8 and 8 for T/T0 
-#dt = 8*T_FWHM/N
-
-
-#T = np.linspace(-8*T0,8*T0,N)
+dt = 750*T0/N #the 16 is to get a grid between -8 and 8 for T/T0   #The number before T0/N sets the time (and freq) frame!
 T = np.arange(-N/2, N/2)*dt
-
-
-T_FWHM_g = 2*np.sqrt(np.log(2))*T0
-T_FWHM_sech = 2*np.log(1+np.sqrt(2))*T0
-
-
-T_selected_g = T0##### Update with a button(?)
-
-T_selected_s = T0##### Update with a button(?)
-
-
+#---------------- Parameters: -----------------#
+zmax = 3.5/3 # km    Values for n/3 -> φNL max = n*π
 #gamma = n2*wo/(speed*Aeff)
+beta2_initial = 8.3#5.66099
+beta3_initial = 10#ps^3/km
 gamma_initial = 1 #1/(W*km)
-P0 = 10E-3
-LNL= 1/(gamma_initial*P0)
-Leff = LNL
-m0 = 3
-C = 0
+P0 = (3*np.pi)#10E-3
+alpha_initial = 0 #dB/km
+z0 = 0
+m0 = 2
+C0 = 0 #Chirp parameter
+pulsetype = 'Gaussian'# or Sech
 #-------------------------------------------#
-
-
-
-
 
 #-------- SLIDERS---------------
 
@@ -81,7 +63,6 @@ gamma_slider = dcc.Slider(
         1: {'label': '1', 'style': {'color': colors['text']}}},
     )
 
-
 PPower_slider = dcc.Slider(
         id='PP_slid',
         min=0.001,
@@ -93,9 +74,8 @@ PPower_slider = dcc.Slider(
         1: {'label': '1W', 'style': {'color': colors['text']}}},
     )
 
-
-m_slider = dcc.Slider(
-        id='m_slid',
+ms_slider = dcc.Slider(
+        id='ms_slid',
         min=2,
         max=10,
         step=1,
@@ -105,138 +85,50 @@ m_slider = dcc.Slider(
         10: {'label': '10', 'style': {'color': colors['text']}}},
     )
 
-
-
-
-
-
-
-
+# C_slider = dcc.Slider(
+#         id='cs_slid',
+#         min=0,
+#         max=10,
+#         step=1,
+#         value=C0,
+#         marks={
+#         0: {'label': '0', 'style': {'color': colors['text']}},
+#         10: {'label': '10', 'style': {'color': colors['text']}}},
+#     )
 
 #---------------------------------------------------------------#
 #///////////////////////////////////////////////////////////////#
 #-------------------                        --------------------#
-Phi, dw = incident_field_spm(Leff, gamma_initial, P0, T_selected_g, T, pulse = 'Gaussian', m = 1, C=0)
-Phi2, dw2 = incident_field_spm(Leff, gamma_initial, P0, T_selected_g, T, pulse = 'Gaussian', m = m0, C=0)
-Phi_s, dw_s = incident_field_spm(Leff, gamma_initial, P0, T_selected_s, T, pulse = 'Sech', C=0)
-
-gauss_p1 = go.Scatter(x=T/T_selected_g ,y=Phi, name = 'Gaussian',
-                         line=dict(color=colors['even']))
-
-
-gauss_p2 = go.Scatter(x=T/T_selected_g ,y=Phi2, name = 'Super-Gaussian',
-                         line=dict(color=colors['odd']))
-
-gauss_chirp1 = go.Scatter(x=T/T_selected_g ,y=dw*T_selected_g, name = 'Gaussian',
-                         line=dict(color=colors['even']))
-
-
-gauss_chirp2 = go.Scatter(x=T/T_selected_g ,y=dw2*T_selected_g, name = 'Super-Gaussian',
-                         line=dict(color=colors['odd']))
-
-
-sech_p = go.Scatter(x=T/T_selected_s ,y=Phi_s, name = 'Sech',
-                         line=dict(color=colors['other']))
-
-sech_chirp = go.Scatter(x=T/T_selected_s ,y=dw_s*T_selected_s, name = 'Sech',
-                         line=dict(color=colors['other']))
-
-
-spm_phase = go.Figure(data=[gauss_p1,gauss_p2, sech_p ]).update_layout( 
-    updatemenus = list([
-        dict(
-            type="buttons",
-            active=0,
-            buttons=list([   
-                dict(label = 'Gaussian',
-                    method = 'update',
-                    args = [{'visible': [True, True, False]},
-                            {'title': 'Phase: Gaussian Pulse.'}]), 
-
-                dict(label = 'Sech',
-                    method = 'update',
-                    args = [{'visible': [False, False, True]},
-                            {'title': '''
-                            Phase: Sech Pulse.'''}])  
-            ]),
-        )
-    ])
-)
-
-
-spm_phase.update_layout( 
-                        width=600, height=600,
-                        plot_bgcolor  = colors['background'],
-                        paper_bgcolor = colors['background'],
-                        font= {
-                                'color': colors['text']},
-                        yaxis=dict(range=[0, 1.1],title='Phase \u03C6NL', 
-                                    ), 
-                        xaxis=dict(range=[-2.5, 2.5],title='T/T0', 
-                                    ), 
-                        )
-
+spm1 = Propagation( T0, T, m = 1, 
+                        C=C0, pulsetype = 'Gaussian',
+                        solve_type='only_spm',  
+                        beta2=beta2_initial,
+                        gamma=gamma_initial, 
+                        P0=P0)
+spm2 = Propagation( T0, T, m = m0, 
+                        C=C0, pulsetype = 'Gaussian',
+                        solve_type='only_spm',  
+                        beta2=beta2_initial,
+                        gamma=gamma_initial, 
+                        P0=P0)
+spm3 = Propagation( T0, T, m = m0, 
+                        C=C0, pulsetype = 'Sech',
+                        solve_type='only_spm',  
+                        beta2=beta2_initial,
+                        gamma=gamma_initial, 
+                        P0=P0)
+LNL = spm1.compute_LNL()
+spm_phase = plot_shift(spm1, spm2,spm3)
+spm_chirp = plot_chirp(spm1, spm2,spm3)
 
 phase_graph = dcc.Graph(id='phase_spm_plot',
                         animate=True,
-                        figure=spm_phase.update_layout(
-
-))
-
-
-
-spm_chirp = go.Figure(data=[gauss_chirp1,gauss_chirp2, sech_chirp ]).update_layout( 
-    updatemenus = list([
-        dict(
-            type="buttons",
-            active=0,
-            buttons=list([   
-                dict(label = 'Gaussian',
-                    method = 'update',
-                    args = [{'visible': [True, True, False]},
-                            {'title': 'Chirp: Gaussian Pulse.'}]), 
-
-                dict(label = 'Sech',
-                    method = 'update',
-                    args = [{'visible': [False, False, True]},
-                            {'title': '''
-                            Chirp: Sech Pulse.'''}])  
-            ]),
-        )
-    ])
-)
-
-
-spm_chirp.update_layout( 
-                        width=600, height=600,
-                        plot_bgcolor  = colors['background'],
-                        paper_bgcolor = colors['background'],
-                        font= {
-                                'color': colors['text']},
-                        yaxis=dict(range=[-3, 3],title='frequency chirp \u03B4\u03C9T0', 
-                                    ), 
-                        xaxis=dict(range=[-2.5, 2.5],title='T/T0', 
-                                    ), 
-                        )
-
+                        figure=spm_phase.update_layout())
 
 chirp_graph = dcc.Graph(id='chirp_spm_plot',
                         animate=True,
-                        figure=spm_chirp.update_layout(
-
-))
-
+                        figure=spm_chirp.update_layout())
 #---------------------------------------------------------------#
-
-
-
-
-
-
-
-
-
-
 
 #-------Final Layout for plotting and display of sliders and constants-------#
 layout = html.Div(style={'backgroundColor': colors['background']},
@@ -244,8 +136,7 @@ layout = html.Div(style={'backgroundColor': colors['background']},
         html.Div(id='dpf-display-value'),
         dcc.Link('Go to GVD effect', href='/apps/gvd'), ##EDIT LINK TO OTHER PAGES
         html.Div(id='modesf-display-value'),
-        dcc.Link('Go to Split-Step for NLSE', href='/apps/nlse'),
-        
+        dcc.Link('Go to Split-Step for NLSE', href='/apps/nlse'),  
         html.Div(className='rows', 
         children=[
             html.Div(className='four columns div-user-controls', style={'backgroundColor': colors['background']}, 
@@ -256,8 +147,11 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                 html.H3('P0: '+str(P0)+r'W', id='p0_val', style={'color': colors['text']}),
                 PPower_slider,
                 html.H3('LNL: '+ str( '%.3f' %  (LNL)) + ' m', id = 'LNL_display'),
+                html.H3('Leff = LNL'),
                 html.H3('m: '+ str(m0), id = 'm_display'),
-                m_slider,
+                ms_slider,
+                #html.H3('C: '+ str(C0), id = 'c_display'),
+                #C_slider,
             ]),  # Define the left element
             html.Div(className='eight columns div-for-charts bg-grey', style={'backgroundColor': colors['background']},  
             children = [
@@ -266,7 +160,6 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                             'textAlign': 'center',
                             'color': colors['text']
                     }),
-
                     html.Div(style={
                         'textAlign': 'center',
                         'color': colors['text']
@@ -284,56 +177,47 @@ layout = html.Div(style={'backgroundColor': colors['background']},
     Output('p0_val', 'children'),
     Output('LNL_display', 'children'),
     Output('m_display', 'children'),
+    #Output('c_display', 'children'),
     Output('phase_spm_plot', 'figure'),
     Output('chirp_spm_plot', 'figure'),
     ],
     [Input('gamma_slid', 'value'),
     Input('PP_slid', 'value'),
-    Input('m_slid', 'value')
+    Input('ms_slid', 'value'),
+    #Input('cs_slid', 'value'),
     ]
     )
 
 # function to update with the callback:
-def update_plot(new_gamma, new_pp, mn):
+def update_plot(new_gamma, new_pp, mn):#,cn):
     
-    if new_gamma != 0 and new_pp != 0 :
-        LNL_n = 1/(new_gamma*new_pp)
-    else:
-        LNL_n = Inf
-    Leff_n = LNL_n
-    Phi_n, dw_n = incident_field_spm(Leff_n, new_gamma, new_pp, T_selected_g, T, pulse = 'Gaussian', m = 1, C=0)
-    Phi2_n, dw2_n = incident_field_spm(Leff_n, new_gamma, new_pp, T_selected_g, T, pulse = 'Gaussian', m = mn, C=0)
-    Phi_s_n, dw_s_n = incident_field_spm(Leff_n, new_gamma, new_pp, T_selected_s, T, pulse = 'Sech', C=0)
-
-    gauss_p1_n = go.Scatter(x=T/T_selected_g ,y=Phi_n, name = 'Gaussian',
-                            line=dict(color=colors['even']))
-
-
-    gauss_p2_n = go.Scatter(x=T/T_selected_g ,y=Phi2_n, name = 'Super-Gaussian',
-                            line=dict(color=colors['odd']))
-
-    gauss_chirp1_n = go.Scatter(x=T/T_selected_g ,y=dw_n*T_selected_g, name = 'Gaussian',
-                            line=dict(color=colors['even']))
-
-
-    gauss_chirp2_n = go.Scatter(x=T/T_selected_g ,y=dw2_n*T_selected_g, name = 'Super-Gaussian',
-                            line=dict(color=colors['odd']))
-
-
-    sech_p_n = go.Scatter(x=T/T_selected_s ,y=Phi_s_n, name = 'Sech',
-                            line=dict(color=colors['other']))
-
-    sech_chirp_n = go.Scatter(x=T/T_selected_s ,y=dw_s_n*T_selected_s, name = 'Sech',
-                            line=dict(color=colors['other']))
-
-    spm_chirp_n = go.Figure(data=[gauss_chirp1_n,gauss_chirp2_n, sech_chirp_n ]).update_layout()
-    spm_phase_n = go.Figure(data=[gauss_p1_n,gauss_p2_n, sech_p_n ]).update_layout()
-
+    spm1 = Propagation( T0, T, m = 1, 
+                            #C=cn, pulsetype = 'Gaussian',
+                            C=C0, pulsetype = 'Gaussian',
+                            solve_type='only_spm',
+                            gamma=new_gamma, 
+                            P0=new_pp)
+    spm2 = Propagation( T0, T, m = mn, 
+                            #C=cn, pulsetype = 'Gaussian',
+                            C=C0, pulsetype = 'Gaussian',
+                            solve_type='only_spm',
+                            gamma=new_gamma, 
+                            P0=new_pp)
+    spm3 = Propagation( T0, T,
+                            #C=cn, pulsetype = 'Sech',
+                            C=C0, pulsetype = 'Sech',
+                            solve_type='only_spm',
+                            gamma=new_gamma, 
+                            P0=new_pp)
+    LNL = spm1.compute_LNL()
+    spm_phase = plot_shift(spm1, spm2,spm3)
+    spm_chirp = plot_chirp(spm1, spm2,spm3)
 
     return ('\u03B3: '+str(new_gamma)+ ' [1/W/m]',
             'P0: '+str(new_pp)+r' W',
-            'LNL: '+ str( '%.3f' %  (LNL_n)) + ' m',
+            'LNL: '+ str( '%.3f' %  (LNL)) + ' m',
             'm: '+ str(mn),
-            spm_phase_n,
-            spm_chirp_n
+            #'C: '+ str((cn)),
+            spm_phase,
+            spm_chirp
             )
