@@ -81,16 +81,15 @@ C_slider = dcc.Slider(
         -5: {'label': '-5', 'style': {'color': colors['text']}},
         5: {'label': '5', 'style': {'color': colors['text']}}},
     )
-
 Lange_slider = dcc.Slider(
         id='lange_slid',
         min=0,
-        max=2.5,
+        max=1,
         step=0.001,
         value=z0,
         marks={
         0: {'label': '0', 'style': {'color': colors['text']}},
-        2.5: {'label': '2.5 km', 'style': {'color': colors['text']}}},
+        1: {'label': '1 km', 'style': {'color': colors['text']}}},
     )
 
 beta2_initial *= 1E-24
