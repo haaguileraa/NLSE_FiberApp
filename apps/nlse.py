@@ -194,7 +194,9 @@ else:
                         P0=P0,
                         z0=z0,
                         size_array = size_array)
-
+UI = pulse.UI
+UIW = pulse.UIW
+W = pulse.W
 LNL = pulse.compute_LNL()
 LD = pulse.compute_LD()
 
@@ -212,12 +214,29 @@ env_graph_w = dcc.Graph(id='envelopew', #id for callback purposes
                         figure=env_fig_w.update_layout(
 ))  
 
+# import sys
+
+# print('SIZE: ',sys.getsizeof(UI),sys.getsizeof(UIW))
+
+# #It's generally safe to store up to 2MB in most environments, and 5~10MB in most desktop-only applications.
+# # The memory store reverts to the default on every page refresh
+# dcc.Store(id='memory'),
+# # The local store will take the initial data
+# # only the first time the page is loaded
+# # and keep it until it is cleared.
+# dcc.Store(id='local', storage_type='local'),
+# # Same as the local store but will lose the data
+# # when the browser/tab closes.
+# dcc.Store(id='session', storage_type='session'),
+
+
 prop_t = pulse.plot_propagation(mode = 'time') # propagation plot in time 
 prop_w = pulse.plot_propagation(mode = 'spectrum') # propagation plot in spectrum 
    
 #-------Final Layout for plotting and display of sliders and constants-------#
 layout = html.Div(style={'backgroundColor': colors['background']},
     children=[
+        dcc.Store(id='session', storage_type='session'), #problems with 'session' and 'local'. 'Memory' to slow
         html.Div(id='dpf-display-value'),
         dcc.Link('Go to SPM effect', href='/apps/spm'), ##EDIT LINK TO OTHER PAGES
         html.Div(id='modesf-display-value'),
@@ -363,6 +382,7 @@ def update_left(new_alpha, new_m, new_c, new_zmax):
     Output('loading2', 'children'),
     Output('z_slid', 'marks'),
     Output('z_slid', 'value'),
+    Output('session', 'data'),
     ],
     [Input('calculate', 'n_clicks'),],
     [
@@ -375,10 +395,11 @@ def update_left(new_alpha, new_m, new_c, new_zmax):
     State('c_slid', 'value'),
     State('L_slid', 'value'),
     State('switch', 'value'),
+    State('session', 'data'),
     ]
     )
 # function to update with the callback:
-def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new_m, new_c, new_L, switch):
+def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new_m, new_c, new_L, switch, data):
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
     else:
@@ -388,7 +409,7 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
         new_beta3 *= 1E-39
         new_gamma *= 1E-3
 #T0, T, solve_type= 'incident_field', L=0.1, beta2=0, gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', m = 1, C=0
-        global pulse
+        #global pulse
         if new_beta2 == 0:
             pulse = Propagation(T0, T, m = new_m, 
                             C=new_c, pulsetype = pulsetype,
@@ -408,6 +429,9 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
                             gamma=new_gamma, 
                             P0=new_p0,
                             loss = new_alpha)
+        UI = pulse.UI
+        UIW = pulse.UIW
+        data = {'ui': UI, 'uiw': UIW}
         marks={
         0: {'label': '0', 'style': {'color': colors['text']}},
         lastz: {'label': '{0} m'.format( '%.2f' % (pulse.z[-1])), 'style': {'color': colors['text']}}}
@@ -415,7 +439,7 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
         prop_w = pulse.plot_propagation(mode = 'spectrum')
         return [dcc.Graph(figure=prop_t.update_layout()), 
                 dcc.Graph(figure=prop_w.update_layout()), 
-                marks,0,]
+                marks,0,data]
 
 @app.callback( 
     [Output('envelopet', 'figure'),
@@ -423,11 +447,16 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
     Output('z_', 'children'),
     ],
     [Input('z_slid', 'value'),
+    State('session', 'data'),
+    State('switch', 'value'),
     ])
 
-def update_envelope(new_z):
-    return [pulse.plot_envelope(mode = 'time', z0 =new_z),
-            pulse.plot_envelope(mode = 'spectrum', z0 =new_z),
+def update_envelope(new_z,data,switch):
+    if switch: pulsetype = 'Sech'
+    else: pulsetype = 'Gaussian'
+    return [plot_envelope(T/T0,data.get('ui', UI), pulsetype,colors,mode = 'time', z0 = new_z),
+            #plot_envelope(W,UIW, pulsetype,colors,mode = 'spectrum', z0 = new_z),
+            plot_envelope(W,data.get('uiw', UIW), pulsetype,colors,mode = 'spectrum', z0 = new_z),
             'z: '+str('%.2f' % (pulse.z[new_z]))+r'm',
             ]
 
