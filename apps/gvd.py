@@ -72,7 +72,7 @@ m_slider = dcc.Slider(
     )
 
 C_slider = dcc.Slider(
-        id='c_slid',
+        id='cg_slid',
         min=-5,
         max=5,
         step=1,
