@@ -44,12 +44,12 @@ beta3_initial = 0#ps^3/km
 gamma_initial = 1 #1/(W*km) 
 P0 = (3*np.pi)#10E-3 # W
 alpha_initial = 0 #dB/km
-z0 = 0
-m0 = 1
+z0 = 0 #initial point for pulse envelope
+m0 = 1 #for Gaussian/Super-Gaussian pulses
 C0 = 0 #Chirp parameter
 pulsetype = 'Gaussian'# or Sech
 size_array = 13
-lastz = int(size_array-1)
+lastz = int(size_array-1) #last value to create the slider: from 0 to size_array-1 -> indey never out of bounds
 #-------------------------------------------#
 
 #-------- SLIDERS---------------
@@ -173,7 +173,6 @@ beta2_initial *= 1E-27 # 1E-24 * 1E-3 (ps²/m)
 beta3_initial *= 1E-39 # 1E-36 * 1E-3 (ps³/m)
 gamma_initial *= 1E-3 # (1/(W m))
 
-#if beta2_initial == 0:
 pulse = Propagation(T0, T, m = m0, 
                     C=C0, pulsetype = pulsetype,
                     solve_type='split_step', 
@@ -184,16 +183,6 @@ pulse = Propagation(T0, T, m = m0,
                     P0=P0,
                     z0=z0,
                     size_array = size_array)
-# else:
-#     pulse = Propagation(T0, T, m = m0, 
-#                         C=C0, pulsetype = pulsetype,
-#                         solve_type='split_step', 
-#                         L=zmax, 
-#                         beta2=beta2_initial,
-#                         gamma=gamma_initial, 
-#                         P0=P0,
-#                         z0=z0,
-#                         size_array = size_array)
 UI = pulse.UI
 UIW = pulse.UIW
 Z = pulse.z
@@ -214,12 +203,6 @@ env_graph_w = dcc.Graph(id='envelopew', #id for callback purposes
                         animate=True,
                         figure=env_fig_w.update_layout(
 ))  
-
-import sys
-
-print('SIZE: ',sys.getsizeof(UI),sys.getsizeof(UIW), sys.getsizeof(Z))
-print('Size: ', UI.shape, UIW.shape, Z.shape)
-print('Type: ', UI.dtype, UIW.dtype, Z.dtype)
 
 # #It's generally safe to store up to 2MB in most environments, and 5~10MB in most desktop-only applications.
 # # The memory store reverts to the default on every page refresh
@@ -411,9 +394,7 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
         new_beta2 *= 1E-27
         new_beta3 *= 1E-39
         new_gamma *= 1E-3
-#T0, T, solve_type= 'incident_field', L=0.1, beta2=0, gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', m = 1, C=0
-        #global pulse
-        #if new_beta2 == 0:
+            
         pulse = Propagation(T0, T, m = new_m, 
                         C=new_c, pulsetype = pulsetype,
                         solve_type='split_step', 
@@ -424,16 +405,7 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
                         P0=new_p0,
                         loss = new_alpha,
                         size_array = size_array)
-        # else:
-        #     pulse = Propagation(T0, T, m = new_m, 
-        #                     C=new_c, pulsetype = pulsetype,
-        #                     solve_type='split_step', 
-        #                     L=new_L, 
-        #                     beta2=new_beta2,
-        #                     gamma=new_gamma, 
-        #                     P0=new_p0,
-        #                     loss = new_alpha,
-        #                     size_array = size_array)
+
         UI = pulse.UI
         UIW = pulse.UIW
         Z = pulse.z
