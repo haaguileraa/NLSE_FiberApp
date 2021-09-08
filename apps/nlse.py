@@ -33,14 +33,14 @@ colors = { #Colors for the plots and web interface:
 #Tmax = 5 ~ 10ps -> much less GVD -> LD >> L and LNL
 T0 = 1E-12 #  duration of input #slider 50fs -1ps  -grid-8ps-8ps
 #for pulse width  --> Dispersive effects at T0 ~ 1ps 
-N = 8196 #ammount of points 
+N = 8192 #ammount of points 
 dt = 750*T0/N #the 16 is to get a grid between -8 and 8 for T/T0   #The number before T0/N sets the time (and freq) frame!
 T = np.arange(-N/2, N/2)*dt
 #---------------- Parameters: -----------------#
 zmax = 500#m #3.5/3*1E2 # km    Values for n/3 -> φNL max = n*π
 #gamma = n2*wo/(speed*Aeff)
 beta2_initial = 8.3#5.66099 #ps^2/km
-beta3_initial = 10#ps^3/km
+beta3_initial = 0#ps^3/km
 gamma_initial = 1 #1/(W*km) 
 P0 = (3*np.pi)#10E-3 # W
 alpha_initial = 0 #dB/km
@@ -48,7 +48,7 @@ z0 = 0
 m0 = 1
 C0 = 0 #Chirp parameter
 pulsetype = 'Gaussian'# or Sech
-size_array = 51
+size_array = 13
 lastz = int(size_array-1)
 #-------------------------------------------#
 
@@ -173,29 +173,30 @@ beta2_initial *= 1E-27 # 1E-24 * 1E-3 (ps²/m)
 beta3_initial *= 1E-39 # 1E-36 * 1E-3 (ps³/m)
 gamma_initial *= 1E-3 # (1/(W m))
 
-if beta2_initial == 0:
-    pulse = Propagation(T0, T, m = m0, 
-                        C=C0, pulsetype = pulsetype,
-                        solve_type='split_step', 
-                        L=zmax, 
-                        beta2=beta2_initial,
-                        beta3=beta3_initial,
-                        gamma=gamma_initial, 
-                        P0=P0,
-                        z0=z0,
-                        size_array = size_array)
-else:
-    pulse = Propagation(T0, T, m = m0, 
-                        C=C0, pulsetype = pulsetype,
-                        solve_type='split_step', 
-                        L=zmax, 
-                        beta2=beta2_initial,
-                        gamma=gamma_initial, 
-                        P0=P0,
-                        z0=z0,
-                        size_array = size_array)
+#if beta2_initial == 0:
+pulse = Propagation(T0, T, m = m0, 
+                    C=C0, pulsetype = pulsetype,
+                    solve_type='split_step', 
+                    L=zmax, 
+                    beta2=beta2_initial,
+                    beta3=beta3_initial,
+                    gamma=gamma_initial, 
+                    P0=P0,
+                    z0=z0,
+                    size_array = size_array)
+# else:
+#     pulse = Propagation(T0, T, m = m0, 
+#                         C=C0, pulsetype = pulsetype,
+#                         solve_type='split_step', 
+#                         L=zmax, 
+#                         beta2=beta2_initial,
+#                         gamma=gamma_initial, 
+#                         P0=P0,
+#                         z0=z0,
+#                         size_array = size_array)
 UI = pulse.UI
 UIW = pulse.UIW
+Z = pulse.z
 W = pulse.W
 LNL = pulse.compute_LNL()
 LD = pulse.compute_LD()
@@ -214,9 +215,11 @@ env_graph_w = dcc.Graph(id='envelopew', #id for callback purposes
                         figure=env_fig_w.update_layout(
 ))  
 
-# import sys
+import sys
 
-# print('SIZE: ',sys.getsizeof(UI),sys.getsizeof(UIW))
+print('SIZE: ',sys.getsizeof(UI),sys.getsizeof(UIW), sys.getsizeof(Z))
+print('Size: ', UI.shape, UIW.shape, Z.shape)
+print('Type: ', UI.dtype, UIW.dtype, Z.dtype)
 
 # #It's generally safe to store up to 2MB in most environments, and 5~10MB in most desktop-only applications.
 # # The memory store reverts to the default on every page refresh
@@ -236,7 +239,7 @@ prop_w = pulse.plot_propagation(mode = 'spectrum') # propagation plot in spectru
 #-------Final Layout for plotting and display of sliders and constants-------#
 layout = html.Div(style={'backgroundColor': colors['background']},
     children=[
-        dcc.Store(id='session', storage_type='session'), #problems with 'session' and 'local'. 'Memory' to slow
+        dcc.Store(id='session', storage_type='local'), #problems with 'session' and 'local'. 'Memory' to slow
         html.Div(id='dpf-display-value'),
         dcc.Link('Go to SPM effect', href='/apps/spm'), ##EDIT LINK TO OTHER PAGES
         html.Div(id='modesf-display-value'),
@@ -247,6 +250,7 @@ layout = html.Div(style={'backgroundColor': colors['background']},
             html.Div(className='four columns div-user-controls', style={'backgroundColor': colors['background']}, 
             children = [
                 html.P('Front-End for NLSE', style={'color': colors['text']}),
+                html.P('Pulse with T0 = 1ps', style={'color': colors['text']}),
                 html.H3('\u03B1: '+str(alpha_initial)+ ' [dB/km]', id='alpha_v',style={'color': colors['text']}),
                 alpha_slider,
                 html.H3(children=[html.Var('\u03B22: '+str( '%.1f' % (beta2_initial*1E24))+ ' ps', id='beta2_v'),
@@ -270,7 +274,7 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                 html.H5('N = sqrt(LD/LNL)= '+ str( '%.3f' %  np.sqrt(LD/LNL)), id = 'Ng_v'),
                 html.H3('L: '+str('%.4f' % (zmax))+r'm', id='L_', style={'color': colors['text']}),
                 L_slider,
-                daq.ToggleSwitch(id='switch',value=False,label='Type of pulse (Sech or Gaussian): ', labelPosition='bottom'),
+                daq.ToggleSwitch(id='switch',value=False,label='Type of pulse (Sech or Gaussian): ', labelPosition='top'),
                 html.Button('Calculate', id='calculate', n_clicks=0),
             ]),  # Define the left element
             html.Div(className='eight columns div-for-charts bg-grey', style={'backgroundColor': colors['background']},  
@@ -403,35 +407,37 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
     else:
-        if switch: pulsetype = 'Sech'
-        else: pulsetype = 'Gaussian'
+        pulsetype = 'Sech' if switch else 'Gaussian'
         new_beta2 *= 1E-27
         new_beta3 *= 1E-39
         new_gamma *= 1E-3
 #T0, T, solve_type= 'incident_field', L=0.1, beta2=0, gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', m = 1, C=0
         #global pulse
-        if new_beta2 == 0:
-            pulse = Propagation(T0, T, m = new_m, 
-                            C=new_c, pulsetype = pulsetype,
-                            solve_type='split_step', 
-                            L=new_L, 
-                            beta2=new_beta2,
-                            beta3=new_beta3,
-                            gamma=new_gamma, 
-                            P0=new_p0,
-                            loss = new_alpha)
-        else:
-            pulse = Propagation(T0, T, m = new_m, 
-                            C=new_c, pulsetype = pulsetype,
-                            solve_type='split_step', 
-                            L=new_L, 
-                            beta2=new_beta2,
-                            gamma=new_gamma, 
-                            P0=new_p0,
-                            loss = new_alpha)
+        #if new_beta2 == 0:
+        pulse = Propagation(T0, T, m = new_m, 
+                        C=new_c, pulsetype = pulsetype,
+                        solve_type='split_step', 
+                        L=new_L, 
+                        beta2=new_beta2,
+                        beta3=new_beta3,
+                        gamma=new_gamma, 
+                        P0=new_p0,
+                        loss = new_alpha,
+                        size_array = size_array)
+        # else:
+        #     pulse = Propagation(T0, T, m = new_m, 
+        #                     C=new_c, pulsetype = pulsetype,
+        #                     solve_type='split_step', 
+        #                     L=new_L, 
+        #                     beta2=new_beta2,
+        #                     gamma=new_gamma, 
+        #                     P0=new_p0,
+        #                     loss = new_alpha,
+        #                     size_array = size_array)
         UI = pulse.UI
         UIW = pulse.UIW
-        data = {'ui': UI, 'uiw': UIW}
+        Z = pulse.z
+        data = {'ui': UI, 'uiw': UIW, 'zi': Z}
         marks={
         0: {'label': '0', 'style': {'color': colors['text']}},
         lastz: {'label': '{0} m'.format( '%.2f' % (pulse.z[-1])), 'style': {'color': colors['text']}}}
@@ -452,12 +458,12 @@ def update_plots(n_clicks,new_alpha,new_beta2, new_beta3, new_gamma, new_p0, new
     ])
 
 def update_envelope(new_z,data,switch):
-    if switch: pulsetype = 'Sech'
-    else: pulsetype = 'Gaussian'
+    pulsetype = 'Sech' if switch else 'Gaussian'
+    Zi = data.get('zi', Z)
     return [plot_envelope(T/T0,data.get('ui', UI), pulsetype,colors,mode = 'time', z0 = new_z),
-            #plot_envelope(W,UIW, pulsetype,colors,mode = 'spectrum', z0 = new_z),
             plot_envelope(W,data.get('uiw', UIW), pulsetype,colors,mode = 'spectrum', z0 = new_z),
-            'z: '+str('%.2f' % (pulse.z[new_z]))+r'm',
+            #'z: '+str('%.2f' % (pulse.z[new_z]))+r'm',
+            'z: '+str('%.2f' % (Zi[new_z]))+r'm',
             ]
 
 @app.callback(Output("download-text", "data"), Input("download", "n_clicks"), 
@@ -470,12 +476,14 @@ def update_envelope(new_z,data,switch):
     State('c_slid', 'value'),
     State('L_slid', 'value'),
     State('z_slid', 'value'),
-    State('switch', 'label'),]) #save local->download the pandas csv
-    
-def func(n_clicks, new_alpha, new_beta2, new_beta3, new_gamma, new_p0, new_m, new_C, new_L, new_z0, pulse):
+    State('switch', 'label'),
+    State('session', 'data'),]) #save local->download the pandas csv
+
+def func(n_clicks, new_alpha, new_beta2, new_beta3, new_gamma, new_p0, new_m, new_C, new_L, new_z0, pulse, data):
     if n_clicks is None:
         raise dash.exceptions.PreventUpdate
     else:
+        Zi = data.get('zi', Z)
         return dict(content=
         '''
     Loss = {0} dB/km
@@ -489,5 +497,5 @@ def func(n_clicks, new_alpha, new_beta2, new_beta3, new_gamma, new_p0, new_m, ne
     Current z for envelope = {8} m
     for a {9}
     with T0 = {10} s
-        '''.format(str('%.3f' % (new_alpha)), str('%.3f' % (new_beta2)),str('%.3f' % (new_beta3)),str('%.3f' % (new_gamma)), str('%.3f' % (new_p0)), new_m, new_C, new_L, new_z0, pulse, T0), 
+        '''.format(str('%.3f' % (new_alpha)), str('%.3f' % (new_beta2)),str('%.3f' % (new_beta3)),str('%.3f' % (new_gamma)), str('%.3f' % (new_p0)), new_m, new_C, new_L, Zi[new_z0], pulse, T0), 
         filename="parameters.txt")
