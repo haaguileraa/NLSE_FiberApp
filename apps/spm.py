@@ -33,7 +33,7 @@ last_update = 'Last update: ' + date
 #Tmax = 5 ~ 10ps
 T0 = 1E-12 #  duration of input
 #for pulse width  --> Dispersive effects at T0 ~ 1ps 
-N = 8196 #ammount of points 
+N = 8192 #ammount of points 
 dt = 750*T0/N #the 16 is to get a grid between -8 and 8 for T/T0   #The number before T0/N sets the time (and freq) frame!
 T = np.arange(-N/2, N/2)*dt
 #---------------- Parameters: -----------------#
