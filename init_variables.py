@@ -5,6 +5,8 @@ import dash_core_components as dcc
 from scipy.integrate import cumtrapz, solve_ivp
 import plotly.graph_objects as go
 from numpy.core.numeric import Inf  
+#import pandas as pd
+
 
 #Last edition date:
 from datetime import date
@@ -23,7 +25,8 @@ def derivative(f,x0,method='central',dx=0.01):
     elif method == 'backward':
         return (f(x0) - f(x0 - dx))/dx
     else:
-        raise ValueError("Method must be 'central', 'forward' or 'backward'.") #taken and edited from https://www.math.ubc.ca/~pwalls/math-python/differentiation/differentiation/
+        raise ValueError("Method must be 'central', 'forward' or 'backward'.") 
+        #taken and edited from https://www.math.ubc.ca/~pwalls/math-python/differentiation/differentiation/
 #--------------------------#
 #----Mid-point Method------#
 def mid_step(x0, f, T, *args):
@@ -89,7 +92,8 @@ class Pulse:
         self.points = len(self.T)
         #Normalized Slow-Varying Envelope
         if self.pulsetype == 'Gaussian':
-            self.UT0 = (np.exp(-((1+1j*self.C)/2)*((self.T/self.T0)**(2*self.m)))).astype(complex) #dtype = 'complex' in order to have complex values on solve_ivp 
+            self.UT0 = (np.exp(-((1+1j*self.C)/2)*((self.T/self.T0)**(2*self.m)))).astype(complex) 
+            #dtype = 'complex' in order to have complex values on solve_ivp 
             # self.T_FWHM = 2*np.sqrt(np.log(2))*self.T0
             # self.T0 = self.T_FWHM
         elif self.pulsetype == 'Sech':
@@ -108,7 +112,9 @@ class Pulse:
 
 #------------------------CLASS-------------------------------#
 class Propagation(Pulse):
-    def __init__(self,T0, T, solve_type= 'incident_field', L=0.1, beta2=0, gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', m = 1, C=0, z0=0,h_step = 0.004, size_array = 51, wavelength=1550E-9):
+    def __init__(self,T0, T, solve_type= 'incident_field', L=0.1, beta2=0, 
+                gamma=0, P0=0,  beta3=0, loss = 0, pulsetype = 'Gaussian', 
+                m = 1, C=0, z0=0,h_step = 0.01, size_array = 13, wavelength=1550E-9):#size_array = 51, h_step = 0.01
         Pulse.__init__(self, T0, T, m=m, C=C, pulsetype=pulsetype)
         self.wavelength = wavelength
         self.speed = 299792458
@@ -122,7 +128,8 @@ class Propagation(Pulse):
         self.z0 = z0 #At this point will be evaluated the pulse while using the 'only_gvd' mode
         self.h_step = h_step #step-size of the SSFM
         self.size_array = size_array #Size of the array where we are going to save the values of U(T) and U(w)
-        self.U = np.zeros((self.size_array,self.points), dtype=complex) # U(z,T) is divided by certain ammount of steps and it's time length is N for each one of the steps
+        self.U = np.zeros((self.size_array,self.points), dtype=complex) 
+        # U(z,T) is divided by certain ammount of steps and it's time length is N for each one of the steps
         self.UW = np.zeros((self.size_array,self.points), dtype=complex)
         self.solve_type = solve_type
 
@@ -200,7 +207,8 @@ class Propagation(Pulse):
         LNL = self.compute_LNL()
         Leff = LNL # Normalized to get the plots from the book
         if self.pulsetype == 'Gaussian':
-            if self.m <= 1: #This conditionals were written when the UT0 was not already generalized for chirped-super-gaussian pulsetypes. Following also the book Arawal
+            if self.m <= 1: #This conditionals were written when the UT0 was not already 
+                #generalized for chirped-super-gaussian pulsetypes. Following also the book Agrawal
                 self.Phi_NL = (Leff/LNL)*np.absolute(self.UT0)**2
                 self.delta_w = delta_g(self.T, self.T0, Leff, LNL)
             else: 
@@ -235,14 +243,13 @@ class Propagation(Pulse):
         self.U[0] = self.UT0  #first value for U(0,T)  
         self.UW[0] = self.UW0 #first value for U(0,W)  
         #for general def (Eq. (2.4.3)): 
-        Dw = -(1j*self.beta2/2)*(1j*self.W)**2 + (self.beta3/6)*(1j*self.W)**3 - self.alpha/2 #D = -1j*beta2/2*(δ²/T²) + beta3/6*(δ³/T³) - alpha/2
-        #TODO: create a way to extract the betas from an array and take them to the frequency domain
+        Dw = -(1j*self.beta2/2)*(1j*self.W)**2 + (self.beta3/6)*(1j*self.W)**3 - self.alpha/2 
+        #D = -1j*beta2/2*(δ²/T²) + beta3/6*(δ³/T³) - alpha/2
         self.z = np.zeros((self.size_array))#array for saving the nth-point U(T,zn) and U(w,zn)
         mi = int(1/(self.size_array*self.h_step)) #just a counter 
         j = 1
         Utemp = self.UT0[:] #variable to update
 
-        #for i in np.linspace(1,zmax*1000-h,k):  if we pre-defined the resolution (or ammount of steps k) independent of the step size h
         for k in range(0,int(1/self.h_step),1): # from z to z+h k times until z_max is reached
             ztemp = k*h #  [m] actual z to evaluate
             Uwtemp = np.fft.fftshift(np.fft.ifft(Utemp))
@@ -264,9 +271,10 @@ class Propagation(Pulse):
                 self.UW[j] = Uwtemp
                 j +=1 #for the next step
                 mi += int(1/(self.size_array*self.h_step))
-        self.z[-1] = ztemp
-        self.U[-1] = Utemp
-        self.UW[-1] = Uwtemp
+        #float64_epsilon = np.finfo(np.float32).eps
+        self.z[-1] = ztemp 
+        self.U[-1] = Utemp 
+        self.UW[-1] = Uwtemp 
         self.UI = np.absolute(self.U)**2
         self.UIW = np.absolute(self.UW)**2
         #self.UIW = self.UIW/np.amax(self.UIW) 
@@ -277,6 +285,7 @@ class Propagation(Pulse):
         print('Leff = {0}'.format('%.3f' % (self.compute_Leff())))
         print('\u03C6 max = {0}*\u03C0'.format('%.3f' % (self.compute_phimax_nogvd()/np.pi)))
         #self.W += self.w0  #Change axis of the functions plot_propagation() and plot_envelope()
+        self.W *= self.T0
         return self.U, self.UI, self.UW, self.UIW, self.W, self.z
 
     ##-------------------------------------------------------##
@@ -290,29 +299,29 @@ class Propagation(Pulse):
         elif mode == 'spectrum':
             intensity = self.UIW
             x = self.W
-            x_title = '\u03C9-\u03C90'
-            xrange = [-0.1E14, 0.1E14]
-            # xrange = [-0.1E14+self.w0, 0.1E14+self.w0]
-            # updatemenus = [
-            #                 dict(
-            #                     type="buttons",
-            #                     direction="left",
-            #                     buttons=list([
-            #                         dict(
-            #                             args=[{'xaxis.type': 'linear'}],
-            #                             label="Linear Scale",
-            #                             method="relayout"
-            #                         ),
-            #                         dict(
-            #                             args=[{'xaxis.type': 'log'}],
-            #                             label="Log Scale",
-            #                             method="relayout"
-            #                         )
-            #                     ])
-            #                 ),
-            #             ]
+            x_title = '(\u03C9-\u03C90)T0'
+            #xrange = [-0.1E14, 0.1E14]
+            #xrange = [-0.1E14+self.w0, 0.1E14+self.w0]
         else:
             raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
+        # updatemenus = [
+        #                     dict(
+        #                         type="buttons",
+        #                         direction="left",
+        #                         buttons=list([
+        #                             dict(
+        #                                 args=[{'yaxis.type': 'linear'}],
+        #                                 label="Linear Scale",
+        #                                 method="relayout"
+        #                             ),
+        #                             dict(
+        #                                 args=[{'yaxis.type': 'log'}],
+        #                                 label="Log Scale",
+        #                                 method="relayout"
+        #                             )
+        #                         ])
+        #                     ),
+        #                 ]
         propagation = go.Figure(data=[go.Heatmap(
                     x = x,
                     y = self.z,#np.sort(z),
@@ -335,35 +344,33 @@ class Propagation(Pulse):
             x = self.T/self.T0
             x_title = 'T/T0'
             y_title = '|U(z,T)|^2'
-            #updatemenus = []
         elif mode == 'spectrum':
             intensity = self.UIW
             x = self.W
-            x_title = '\u03C9-\u03C90'
+            x_title = '(\u03C9-\u03C90)T0'
             y_title = '|U(z,\u03C9)|^2'
-            xrange = [-0.1E14, 0.1E14]
-            # xrange = [-0.1E14+self.w0, 0.1E14+self.w0]
-            # updatemenus = [
-            #                 dict(
-            #                     type="buttons",
-            #                     direction="left",
-            #                     buttons=list([
-            #                         dict(
-            #                             args=[{'xaxis.type': 'linear'}],
-            #                             label="Linear Scale",
-            #                             method="relayout"
-            #                         ),
-            #                         dict(
-            #                             args=[{'xaxis.type': 'log'}],
-            #                             label="Log Scale",
-            #                             method="relayout"
-            #                         )
-            #                     ])
-            #                 ),
-            #             ]
+            #xrange = [-0.1E14, 0.1E14]
+            #xrange = [-0.1E14+self.w0, 0.1E14+self.w0]            
         else:
             raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
-        
+        # updatemenus = [
+        #                     dict(
+        #                         type="buttons",
+        #                         direction="left",
+        #                         buttons=list([
+        #                             dict(
+        #                                 args=[{'yaxis.type': 'linear'}],
+        #                                 label="Linear Scale",
+        #                                 method="relayout"
+        #                             ),
+        #                             dict(
+        #                                 args=[{'yaxis.type': 'log'}],
+        #                                 label="Log Scale",
+        #                                 method="relayout"
+        #                             )
+        #                         ])
+        #                     ),
+        #                 ]
 
         scatter = go.Scatter(x=x,y=intensity[z0], name = self.pulsetype,
                                 line=dict(color=self.colors['even']))
@@ -378,6 +385,7 @@ class Propagation(Pulse):
                                 xaxis=dict(range=xrange,title=x_title, ), 
                                 title = '{0} pulse.'.format(self.pulsetype),
                                 )
+        
         #figure.update_layout(updatemenus=updatemenus)
         return figure
         # To plot and prepare the go.Figure for use inside the call back, the object Pulse should be called:
@@ -397,7 +405,7 @@ class Propagation(Pulse):
         elif mode == 'spectrum':
             intensity = self.UIW
             x = self.W
-            x_title = '\u03C9-\u03C90'
+            x_title = '(\u03C9-\u03C90)T0'
             y_title = '|U(z,\u03C9)|^2'
             xrange = [-0.1E14, 0.1E14]
         else:
@@ -523,7 +531,7 @@ def plot_envelope_x2(pulse1, pulse2, mode = 'time', z0 = 0, xrange = [-8, 8], yr
         intensity2 = pulse2.UIW
         x1 = pulse1.W
         x2 = pulse2.W
-        x_title = '\u03C9-\u03C90'
+        x_title = '(\u03C9-\u03C90)T0'
         y_title = '|U(z,\u03C9)|^2'
     else:
         raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
@@ -586,7 +594,7 @@ def multiplots_1D( *pulses,  mode = 'time', xrange = [-8, 8],  yrange = [0, 1.1]
                                                         xaxis=dict(range=xrange,title=x_title, ), 
                                                         title = '{0} pulse.'.format(pulses[0].pulsetype),)
     elif mode == 'spectrum':
-        x_title = '\u03C9-\u03C90'
+        x_title = '(\u03C9-\u03C90)T0'
         y_title = '|U(z,\u03C9)|^2'
         xrange = [-2E12, 2E12]
         for pulse in pulses:
@@ -626,7 +634,7 @@ def multiplots_2D(*pulses, mode = 'time', z0 = 0, xrange = [-8, 8],  yrange = [0
                                                         xaxis=dict(range=xrange,title=x_title, ), 
                                                         title = '{0} pulse.'.format(pulses[0].pulsetype),)
     elif mode == 'spectrum':
-        x_title = '\u03C9-\u03C90'
+        x_title = '(\u03C9-\u03C90)T0'
         y_title = '|U(z,\u03C9)|^2'
         xrange = [-2E12, 2E12]
         for pulse in pulses:
@@ -652,9 +660,9 @@ def plot_envelope(x,y, pulsetype,colors,mode = 'time', z0 = 0, xrange = [-8, 8],
         y_title = '|U(z,T)|^2'
         #updatemenus = []
     elif mode == 'spectrum':
-        x_title = '\u03C9-\u03C90'
+        x_title = '(\u03C9-\u03C90)T0'
         y_title = '|U(z,\u03C9)|^2'
-        xrange = [-0.1E14, 0.1E14]
+        #xrange = [-0.1E14, 0.1E14]
         # xrange = [-0.1E14+self.w0, 0.1E14+self.w0]
         # updatemenus = [
         #                 dict(
