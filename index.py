@@ -27,4 +27,7 @@ def display_page(pathname):
         return '404'
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    #app.run_server(host= '0.0.0.0',debug=False)#now you can run in other device using the same network. 
+    app.run_server(host= '0.0.0.0',debug=True)#now you can run in other device using the same network. 
+    #Changing the localhost (127.0.0.1:8050) to the IPV4 (abhängig von LAN- bzw. WLAN-Verbindung)
+    #app.run_server(debug=True)
