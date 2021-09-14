@@ -3,9 +3,8 @@ Repository for project NLSE at Max Planck Institut
 
 
 
-# UPDATE 09.07.20
-
-**The file init_variables.py is a more organized version of the code. This will be used in a final version integrating Pandas and using better ways to share data between Callbacks on Dash. You can try it using prop_matplot.py!!**
+# UPDATE 14.09.21
+**The SSFM is now working properly and giving some expected results for SPM values following Stolen's paper!!**
 
 
 
