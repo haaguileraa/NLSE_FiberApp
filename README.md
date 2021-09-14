@@ -70,7 +70,7 @@ You can run the App just by using:
 
 **`python .\index.py`**
 
-and go to the page (default): http://127.0.0.1:8050/apps/gvd
+and go to the page (default): http://127.0.0.1:8050/apps/nlse
 
 
 
