@@ -213,6 +213,12 @@ layout = html.Div(style={'backgroundColor': colors['background']},
                     plot_gvd,                  
             ])  
         ]),
+        html.Div(),
+        dcc.Link('Go to Fiber page', href='/apps/results'),
+        html.Div(),
+        dcc.Link('Go to planar waveguide page', href='/apps/dash_plot'),
+        html.Div(),
+        dcc.Link('Go to Modes for planar waveguide', href='/apps/modes_dsply'),
         html.Footer('Joly Nicolas, Aguilera Hernan. Max-Planck-Institut', style={'color': colors['text']}),
         html.Footer(last_update, style={'color': colors['text']}),
     ])

@@ -44,12 +44,12 @@ beta3_initial = 0#ps^3/km
 gamma_initial = 1 #1/(W*km) 
 P0 = (3*np.pi)#10E-3 # W
 alpha_initial = 0 #dB/km
-z0 = 0 #initial point for pulse envelope
-m0 = 1 #for Gaussian/Super-Gaussian pulses
+z0 = 0
+m0 = 1
 C0 = 0 #Chirp parameter
 pulsetype = 'Gaussian'# or Sech
 size_array = 13
-lastz = int(size_array-1) #last value to create the slider: from 0 to size_array-1 -> indey never out of bounds
+lastz = int(size_array-1)
 #-------------------------------------------#
 
 #-------- SLIDERS---------------
@@ -215,11 +215,9 @@ env_graph_w = dcc.Graph(id='envelopew', #id for callback purposes
                         figure=env_fig_w.update_layout(
 ))  
 
-import sys
+# import sys
 
-print('SIZE: ',sys.getsizeof(UI),sys.getsizeof(UIW), sys.getsizeof(Z))
-print('Size: ', UI.shape, UIW.shape, Z.shape)
-print('Type: ', UI.dtype, UIW.dtype, Z.dtype)
+# print('SIZE: ',sys.getsizeof(UI),sys.getsizeof(UIW), sys.getsizeof(Z))
 
 # #It's generally safe to store up to 2MB in most environments, and 5~10MB in most desktop-only applications.
 # # The memory store reverts to the default on every page refresh
@@ -309,6 +307,12 @@ layout = html.Div(style={'backgroundColor': colors['background']},
             ])  
         ]),
         html.Button("Download Parameters as Text", id="download"), dcc.Download(id="download-text"),
+        html.Div(),
+        dcc.Link('Go to Fiber page', href='/apps/results'),
+        html.Div(),
+        dcc.Link('Go to planar waveguide page', href='/apps/dash_plot'),
+        html.Div(),
+        dcc.Link('Go to Modes for planar waveguide', href='/apps/modes_dsply'),
         html.Footer('Joly Nicolas, Aguilera Hernan. Max-Planck-Institut', style={'color': colors['text']}),
         html.Footer(last_update, style={'color': colors['text']}),
     ])
