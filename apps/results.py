@@ -33,7 +33,7 @@ myMode = HybridMode(wavelength_1, diameter_1, typeMode=initial_mode, nu=1)
 U_erst =  "Root for mode {0} = {1}".format(1, '%.5f' % myMode.solveEigenValuePb(1)) 
 beta_erst = "\u03B2 for mode {0} = {1}".format(1, '%.5f' %  myMode.computeBeta(1))
 
-last_update = 'Last update: 16.11.2021'
+last_update = 'Last update: 02.12.2021'
 
 def list_m(mode):
     num_modes = mode.nbreOfModes()

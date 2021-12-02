@@ -5,16 +5,11 @@ import dash_core_components as dcc
 from scipy.integrate import cumtrapz, solve_ivp
 import plotly.graph_objects as go
 from numpy.core.numeric import Inf  
-#import pandas as pd
 
 
 #Last edition date:
-from datetime import date
-
-today = date.today()
-date = today.strftime("%d.%m.%Y")###Edit before deployment with, e.g., '28.06.2021'
+date = '02.12.2021'###Edit before deployment with, e.g., '28.06.2021'
 #-----------------//
-
 ##-----------NUMERICAL METHODS-----------##
 #--------Derivatives--------#
 def derivative(f,x0,method='central',dx=0.01):
@@ -275,8 +270,12 @@ class Propagation(Pulse):
         self.z[-1] = ztemp 
         self.U[-1] = Utemp 
         self.UW[-1] = Uwtemp 
-        self.UI = np.absolute(self.U)**2
-        self.UIW = np.absolute(self.UW)**2
+        self.UI = np.float32(np.absolute(self.U)**2)
+        self.UP = np.float32(np.angle(self.U))
+        # # Phase blanking
+        # self.UP[np.where(self.UI<1E-8)] = np.nan
+        self.UIW = np.float32(np.absolute(self.UW)**2)
+        self.z = np.float32(self.z)
         #self.UIW = self.UIW/np.amax(self.UIW) 
         self.UIW = self.UIW/np.amax(self.UIW[0])
         print('last z evaluated: ',ztemp, 'm')
@@ -290,7 +289,7 @@ class Propagation(Pulse):
 
     ##-------------------------------------------------------##
     #----- PLOTS -----#
-    def plot_propagation(self, mode = 'time', xrange = [-8, 8], size_img = 600):
+    def plot_propagation(self, mode = 'time', xrange = [-8, 8], size_img = 600, colors = 'thermal'):
         if mode == 'time':
             intensity = self.UI
             x = self.T/self.T0#np.sort(t),
@@ -302,33 +301,20 @@ class Propagation(Pulse):
             x_title = '(\u03C9-\u03C90)T0'
             #xrange = [-0.1E14, 0.1E14]
             #xrange = [-0.1E14+self.w0, 0.1E14+self.w0]
+        elif mode == 'phase':
+            intensity = self.UP
+            x = self.T/self.T0
+            x_title = 'T/T0'
+            xrange = [-20, 20]
         else:
             raise ValueError("Mode '{0}' not found. Modes available 'time' or 'spectrum'.".format(mode) )
-        # updatemenus = [
-        #                     dict(
-        #                         type="buttons",
-        #                         direction="left",
-        #                         buttons=list([
-        #                             dict(
-        #                                 args=[{'yaxis.type': 'linear'}],
-        #                                 label="Linear Scale",
-        #                                 method="relayout"
-        #                             ),
-        #                             dict(
-        #                                 args=[{'yaxis.type': 'log'}],
-        #                                 label="Log Scale",
-        #                                 method="relayout"
-        #                             )
-        #                         ])
-        #                     ),
-        #                 ]
         propagation = go.Figure(data=[go.Heatmap(
                     x = x,
                     y = self.z,#np.sort(z),
                     z = intensity,
                     #type = 'heatmap',
                     zsmooth = "best",#to avoid line at the end of the plot
-                    colorscale = 'Jet')])
+                    colorscale = colors)])
         propagation.update_layout(
                                 width=size_img, height=size_img,
                                 yaxis=dict(range=[self.z[0], self.z[-1]],title='z [m]', ), 
@@ -383,7 +369,7 @@ class Propagation(Pulse):
                                 yaxis=dict(range=yrange,title=y_title, ), 
                                 #axis=dict(title=x_title,), 
                                 xaxis=dict(range=xrange,title=x_title, ), 
-                                title = '{0} pulse.'.format(self.pulsetype),
+                                #title = '{0} pulse.'.format(self.pulsetype),
                                 )
         
         #figure.update_layout(updatemenus=updatemenus)
