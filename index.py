@@ -3,7 +3,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app
-from apps import gvd, spm, nlse
+from apps import gvd, spm, nlse, dash_plot, modes_dsply, results
 
 
 app.layout = html.Div([
@@ -21,8 +21,12 @@ def display_page(pathname):
          return spm.layout
     elif pathname == '/apps/nlse':
         return nlse.layout
-    # elif pathname == '/apps/results':
-    #     return results.layout
+    elif pathname == '/apps/dash_plot':
+        return dash_plot.layout
+    elif pathname == '/apps/modes_dsply':
+        return modes_dsply.layout
+    elif pathname == '/apps/results':
+        return results.layout
     else:
         return '404'
 
