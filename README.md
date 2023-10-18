@@ -33,10 +33,11 @@ check the instalation by typing on the terminal of VS code:
 then: 
 
 **` .venv\scripts\activate`**
+or
+**` source .venv/bin/activate `**
 
 
-
-if you get the error "Activate.ps1 is not digitally signed. You cannot run this script on the current system." then type:
+if you get the error "Activate.ps1 is not digitally signed. You cannot run this script on the current system." in Windows, then type:
 
 **`Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process`**
 
